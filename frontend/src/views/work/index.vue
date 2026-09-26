@@ -65,15 +65,16 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
-import { request } from '@/api/client'
+import { fetchJson, request } from '@/api/client'
 
 type Row = Record<string, string | number | null>
+type Summary = { label: string; value: number }
 
 const ENDPOINT = '/api/work'
 const columns = ["施工编号", "关联计划", "承接单位", "开工日期", "完工日期", "完成工程量", "监理人员", "施工状态"]
 const actions = ["确认开工", "提交验收", "确认完工"]
 const statuses = ["待开工", "施工中", "待验收", "已完工"]
-const stats = [{"label": "待开工施工", "value": 0}, {"label": "施工中单据", "value": 0}, {"label": "本月完工数", "value": 0}]
+const stats = ref<Summary[]>([])
 
 const rows = ref<Row[]>([])
 const total = ref(0)
@@ -99,12 +100,13 @@ async function runAction(action: string, row: Row) {
   try {
     const response = await request(`${ENDPOINT}/${row.id}/actions`, {
       method: 'POST',
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ values: { action } }),
     })
     if (!response.ok) {
       throw new Error('养护施工动作未生效，请稍后重试')
     }
     await reload()
+    await loadSummary()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '养护施工操作失败'
   }
@@ -126,5 +128,24 @@ async function reload() {
   }
 }
 
-onMounted(reload)
+
+async function loadSummary() {
+  try {
+    const payload = await fetchJson<{ total: number; pending: number; abnormal: number }>(
+      `${ENDPOINT}/summary`,
+    )
+    stats.value = [
+      { label: '记录总数', value: payload.total },
+      { label: '待处理', value: payload.pending },
+      { label: '异常量', value: payload.abnormal },
+    ]
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '模块汇总数据加载失败'
+  }
+}
+
+onMounted(() => {
+  void reload()
+  void loadSummary()
+})
 </script>

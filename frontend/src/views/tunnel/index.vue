@@ -65,15 +65,16 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
-import { request } from '@/api/client'
+import { fetchJson, request } from '@/api/client'
 
 type Row = Record<string, string | number | null>
+type Summary = { label: string; value: number }
 
 const ENDPOINT = '/api/tunnel'
 const columns = ["隧道编码", "隧道名称", "隧道长度", "断面形式", "照明方式", "通风方式", "管养单位", "隧道状态"]
 const actions = ["办理移交", "安排检修", "停用隧道"]
 const statuses = ["待移交", "正常养护", "检修封闭", "已停用"]
-const stats = [{"label": "在养隧道", "value": 0}, {"label": "检修中隧道", "value": 0}, {"label": "隧道总长", "value": 0}]
+const stats = ref<Summary[]>([])
 
 const rows = ref<Row[]>([])
 const total = ref(0)
@@ -99,12 +100,13 @@ async function runAction(action: string, row: Row) {
   try {
     const response = await request(`${ENDPOINT}/${row.id}/actions`, {
       method: 'POST',
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ values: { action } }),
     })
     if (!response.ok) {
       throw new Error('隧道设施动作未生效，请稍后重试')
     }
     await reload()
+    await loadSummary()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '隧道设施操作失败'
   }
@@ -126,5 +128,24 @@ async function reload() {
   }
 }
 
-onMounted(reload)
+
+async function loadSummary() {
+  try {
+    const payload = await fetchJson<{ total: number; pending: number; abnormal: number }>(
+      `${ENDPOINT}/summary`,
+    )
+    stats.value = [
+      { label: '记录总数', value: payload.total },
+      { label: '待处理', value: payload.pending },
+      { label: '异常量', value: payload.abnormal },
+    ]
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '模块汇总数据加载失败'
+  }
+}
+
+onMounted(() => {
+  void reload()
+  void loadSummary()
+})
 </script>

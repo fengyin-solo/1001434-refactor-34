@@ -9,7 +9,6 @@ MODULE = "archive"
 REQUIRED_FIELDS = ["档案编号", "关联设施", "档案类型"]
 STATUS_ORDER = ["待归档", "已归档", "待补充", "已作废"]
 ACTION_RULES = {"提交归档": "已归档", "确认归档": "待补充", "作废档案": "已作废"}
-NEGATIVE_ACTIONS = ["作废档案"]
 
 
 class ArchiveService:
@@ -41,8 +40,6 @@ class ArchiveService:
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
         entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
         entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
         rows.append(entry)
         return entry, []
 
@@ -56,6 +53,4 @@ class ArchiveService:
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"档案记录已{action}"

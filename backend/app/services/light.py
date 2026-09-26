@@ -9,7 +9,6 @@ MODULE = "light"
 REQUIRED_FIELDS = ["设施编号", "灯杆编号", "灯具类型"]
 STATUS_ORDER = ["待检修", "正常亮灯", "缺亮待修", "已停用"]
 ACTION_RULES = {"安排检修": "正常亮灯", "确认正常": "缺亮待修", "停用设施": "已停用"}
-NEGATIVE_ACTIONS = ["停用设施"]
 
 
 class LightService:
@@ -41,8 +40,6 @@ class LightService:
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
         entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
         entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
         rows.append(entry)
         return entry, []
 
@@ -56,6 +53,4 @@ class LightService:
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"照明设施已{action}"

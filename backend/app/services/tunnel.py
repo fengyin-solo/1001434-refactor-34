@@ -9,7 +9,6 @@ MODULE = "tunnel"
 REQUIRED_FIELDS = ["隧道编码", "隧道名称", "隧道长度"]
 STATUS_ORDER = ["待移交", "正常养护", "检修封闭", "已停用"]
 ACTION_RULES = {"办理移交": "正常养护", "安排检修": "检修封闭", "停用隧道": "已停用"}
-NEGATIVE_ACTIONS = ["停用隧道"]
 
 
 class TunnelService:
@@ -41,8 +40,6 @@ class TunnelService:
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
         entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
         entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
         rows.append(entry)
         return entry, []
 
@@ -56,6 +53,4 @@ class TunnelService:
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"隧道设施已{action}"

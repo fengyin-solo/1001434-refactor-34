@@ -9,7 +9,6 @@ MODULE = "fund"
 REQUIRED_FIELDS = ["资金编号", "费用类别", "项目名称"]
 STATUS_ORDER = ["待审批", "已批复", "执行中", "已超支"]
 ACTION_RULES = {"提交审批": "已批复", "确认批复": "执行中", "标记超支": "已超支"}
-NEGATIVE_ACTIONS = []
 
 
 class FundService:
@@ -41,8 +40,6 @@ class FundService:
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
         entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
         entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
         rows.append(entry)
         return entry, []
 
@@ -56,6 +53,4 @@ class FundService:
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"资金记录已{action}"

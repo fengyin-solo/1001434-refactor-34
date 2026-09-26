@@ -9,7 +9,6 @@ MODULE = "bridge"
 REQUIRED_FIELDS = ["桥梁编码", "桥梁名称", "桥梁类型"]
 STATUS_ORDER = ["待移交", "正常养护", "限载通行", "封闭施工"]
 ACTION_RULES = {"办理移交": "正常养护", "申请限载": "限载通行", "封闭桥梁": "封闭施工"}
-NEGATIVE_ACTIONS = []
 
 
 class BridgeService:
@@ -41,8 +40,6 @@ class BridgeService:
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
         entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
         entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
         rows.append(entry)
         return entry, []
 
@@ -56,6 +53,4 @@ class BridgeService:
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"桥梁设施已{action}"

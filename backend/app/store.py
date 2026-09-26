@@ -11,6 +11,10 @@ from app.seed import SEED_ROWS
 
 class Store:
     def __init__(self) -> None:
+        self.reset()
+
+    def reset(self) -> None:
+        """恢复成初始示例数据；测试用例之间用它回到同一起点。"""
         self._tables: dict[str, list[dict[str, Any]]] = {
             name: [dict(row) for row in rows] for name, rows in SEED_ROWS.items()
         }
@@ -19,31 +23,21 @@ class Store:
         return sorted(self._tables)
 
     def rows(self, module: str) -> list[dict[str, Any]]:
+        # 服务层用于读写本模块数据；模块缺失时按空表初始化。
         return self._tables.setdefault(module, [])
+
+    def table(self, module: str) -> list[dict[str, Any]]:
+        # 汇总口径专用：模块数据根本没有生成时显式报缺数，
+        # 不能让缺数的模块被静默当成“恰好零条”。
+        if module not in self._tables:
+            raise KeyError(module)
+        return self._tables[module]
 
     def find(self, module: str, entry_id: int) -> dict[str, Any] | None:
         for row in self.rows(module):
             if int(row.get("id", 0)) == entry_id:
                 return row
         return None
-
-    def overview(self) -> dict[str, object]:
-        modules: list[dict[str, object]] = []
-        for name in self.module_names():
-            rows = self.rows(name)
-            modules.append({
-                "name": name,
-                "created": len(rows),
-                "pending": sum(1 for row in rows if row.get("pending")),
-                "abnormal": sum(1 for row in rows if row.get("abnormal")),
-            })
-        cards = [
-            {"label": "业务模块", "value": len(modules)},
-            {"label": "今日新增", "value": sum(int(item["created"]) for item in modules)},
-            {"label": "待处理", "value": sum(int(item["pending"]) for item in modules)},
-            {"label": "异常量", "value": sum(int(item["abnormal"]) for item in modules)},
-        ]
-        return {"cards": cards, "modules": modules}
 
 
 store = Store()

@@ -9,7 +9,6 @@ MODULE = "work"
 REQUIRED_FIELDS = ["施工编号", "关联计划", "承接单位"]
 STATUS_ORDER = ["待开工", "施工中", "待验收", "已完工"]
 ACTION_RULES = {"确认开工": "施工中", "提交验收": "待验收", "确认完工": "已完工"}
-NEGATIVE_ACTIONS = []
 
 
 class WorkService:
@@ -41,8 +40,6 @@ class WorkService:
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
         entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
         entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
         rows.append(entry)
         return entry, []
 
@@ -56,6 +53,4 @@ class WorkService:
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"施工任务已{action}"

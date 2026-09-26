@@ -9,7 +9,6 @@ MODULE = "assess"
 REQUIRED_FIELDS = ["评定编号", "评定对象", "评定周期"]
 STATUS_ORDER = ["待评定", "评定中", "已定级", "已复评"]
 ACTION_RULES = {"开始评定": "评定中", "确认定级": "已定级", "发起复评": "已复评"}
-NEGATIVE_ACTIONS = []
 
 
 class AssessService:
@@ -41,8 +40,6 @@ class AssessService:
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
         entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
         entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
         rows.append(entry)
         return entry, []
 
@@ -56,6 +53,4 @@ class AssessService:
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"评定记录已{action}"

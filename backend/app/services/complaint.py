@@ -9,7 +9,6 @@ MODULE = "complaint"
 REQUIRED_FIELDS = ["诉求编号", "诉求来源", "诉求内容"]
 STATUS_ORDER = ["待受理", "办理中", "已回复", "已关闭"]
 ACTION_RULES = {"受理诉求": "办理中", "提交回复": "已回复", "关闭诉求": "已关闭"}
-NEGATIVE_ACTIONS = []
 
 
 class ComplaintService:
@@ -41,8 +40,6 @@ class ComplaintService:
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
         entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
         entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
         rows.append(entry)
         return entry, []
 
@@ -56,6 +53,4 @@ class ComplaintService:
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"诉求记录已{action}"

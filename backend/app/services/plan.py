@@ -9,7 +9,6 @@ MODULE = "plan"
 REQUIRED_FIELDS = ["计划编号", "养护类型", "养护对象"]
 STATUS_ORDER = ["待编制", "待审批", "已批复", "已作废"]
 ACTION_RULES = {"提交审批": "待审批", "确认批复": "已批复", "作废计划": "已作废"}
-NEGATIVE_ACTIONS = ["作废计划"]
 
 
 class PlanService:
@@ -41,8 +40,6 @@ class PlanService:
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
         entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
         entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
         rows.append(entry)
         return entry, []
 
@@ -56,6 +53,4 @@ class PlanService:
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"养护计划已{action}"

@@ -9,7 +9,6 @@ MODULE = "equip"
 REQUIRED_FIELDS = ["机械编号", "机械名称", "机械型号"]
 STATUS_ORDER = ["待保养", "可用", "保养中", "已报废"]
 ACTION_RULES = {"安排保养": "保养中", "确认可用": "可用", "报废机械": "已报废"}
-NEGATIVE_ACTIONS = []
 
 
 class EquipService:
@@ -41,8 +40,6 @@ class EquipService:
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
         entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
         entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
         rows.append(entry)
         return entry, []
 
@@ -56,6 +53,4 @@ class EquipService:
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"养护机械已{action}"

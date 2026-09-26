@@ -9,7 +9,6 @@ MODULE = "accept"
 REQUIRED_FIELDS = ["验收单号", "关联施工", "验收项目"]
 STATUS_ORDER = ["待验收", "验收中", "已通过", "需返工"]
 ACTION_RULES = {"开始验收": "验收中", "确认通过": "已通过", "下发返工": "需返工"}
-NEGATIVE_ACTIONS = []
 
 
 class AcceptService:
@@ -41,8 +40,6 @@ class AcceptService:
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
         entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
         entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
         rows.append(entry)
         return entry, []
 
@@ -56,6 +53,4 @@ class AcceptService:
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"验收单已{action}"

@@ -9,7 +9,6 @@ MODULE = "pothole"
 REQUIRED_FIELDS = ["修补单号", "所在路段", "修补面积"]
 STATUS_ORDER = ["待安排", "修补中", "已完成", "已取消"]
 ACTION_RULES = {"安排修补": "修补中", "确认完成": "已完成", "取消修补": "已取消"}
-NEGATIVE_ACTIONS = []
 
 
 class PotholeService:
@@ -41,8 +40,6 @@ class PotholeService:
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
         entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
         entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
         rows.append(entry)
         return entry, []
 
@@ -56,6 +53,4 @@ class PotholeService:
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"修补单已{action}"

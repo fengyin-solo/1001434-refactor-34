@@ -9,7 +9,6 @@ MODULE = "road"
 REQUIRED_FIELDS = ["设施编码", "道路名称", "道路等级"]
 STATUS_ORDER = ["待移交", "正常养护", "重点观测", "封闭施工"]
 ACTION_RULES = {"办理移交": "正常养护", "标记观测": "重点观测", "封闭设施": "封闭施工"}
-NEGATIVE_ACTIONS = []
 
 
 class RoadService:
@@ -41,8 +40,6 @@ class RoadService:
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
         entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
         entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
         rows.append(entry)
         return entry, []
 
@@ -56,6 +53,4 @@ class RoadService:
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"道路设施已{action}"

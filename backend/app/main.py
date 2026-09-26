@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.routers import ROUTERS
 from app.store import store
+from app.summary import build_overview
 
 app = FastAPI(title="市政道路桥梁养护平台", version="1.0.0")
 
@@ -34,5 +35,9 @@ def health() -> dict[str, object]:
 
 @app.get("/api/overview")
 def overview() -> dict[str, object]:
-    """运营概览：把各业务模块的待处理量汇总成看板卡片。"""
-    return store.overview()
+    """运营概览：按统一口径汇总各模块的待处理与异常量。
+
+    某个模块数据取不到时不会被当成零：对应行会标记 missing，
+    并在 missing 里给出缺数说明，卡片合计只统计实际取到数的模块。
+    """
+    return build_overview(store.table)

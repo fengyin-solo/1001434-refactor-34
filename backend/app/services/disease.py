@@ -9,7 +9,6 @@ MODULE = "disease"
 REQUIRED_FIELDS = ["病害编号", "所在设施", "病害类型"]
 STATUS_ORDER = ["待定级", "已定级", "处置中", "已闭环", "已挂起"]
 ACTION_RULES = {"确认定级": "已定级", "提交闭环": "已闭环", "挂起病害": "已挂起"}
-NEGATIVE_ACTIONS = []
 
 
 class DiseaseService:
@@ -41,8 +40,6 @@ class DiseaseService:
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
         entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
         entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
         rows.append(entry)
         return entry, []
 
@@ -56,6 +53,4 @@ class DiseaseService:
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"病害记录已{action}"

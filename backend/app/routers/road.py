@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas import ActionResult, EntryPayload, PageResult
+from app.summary import summarize_module
 from app.services.road import RoadService
 
 router = APIRouter(prefix="/api/road", tags=["道路设施"])
@@ -28,6 +29,28 @@ def list_entries(
         raise HTTPException(status_code=400, detail="每页最多 200 条，请缩小分页范围")
     items, total = service.list_entries(keyword=keyword, status=status, page=page, size=size)
     return PageResult(items=items, total=total, page=page, size=size)
+
+
+@router.get("/summary")
+def module_summary() -> dict[str, Any]:
+    """模块汇总：与运营概览同源同口径，待处理与异常量都按状态统一推导。
+
+    本模块数据取不到时返回 503 并说明缺数模块，概览不把它悄悄按零处理。
+    """
+    try:
+        return summarize_module("road")
+    except KeyError:
+        raise HTTPException(
+            status_code=503,
+            detail="道路设施模块数据未就绪，无法统计待处理与异常量",
+        )
+
+
+@router.get("/export")
+def export_entries() -> dict[str, Any]:
+    """导出道路设施清单：返回当前全量数据。"""
+    items, total = service.list_entries(page=1, size=10000)
+    return {"module": "road", "total": total, "items": items}
 
 
 @router.get("/{entry_id}", response_model=dict)
@@ -56,10 +79,3 @@ def run_action(entry_id: int, payload: EntryPayload) -> ActionResult:
     if entry is None:
         return ActionResult(ok=False, message=message)
     return ActionResult(ok=True, message=message, entry=entry)
-
-
-@router.get("/export")
-def export_entries() -> dict[str, Any]:
-    """导出道路设施清单：返回当前过滤条件下的全量数据。"""
-    items, total = service.list_entries(page=1, size=10000)
-    return {"module": "road", "total": total, "items": items}

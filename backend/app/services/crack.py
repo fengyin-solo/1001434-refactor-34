@@ -9,7 +9,6 @@ MODULE = "crack"
 REQUIRED_FIELDS = ["处置单号", "所在路段", "裂缝类型"]
 STATUS_ORDER = ["待安排", "处置中", "已完成", "已取消"]
 ACTION_RULES = {"安排处置": "处置中", "确认完成": "已完成", "取消处置": "已取消"}
-NEGATIVE_ACTIONS = []
 
 
 class CrackService:
@@ -41,8 +40,6 @@ class CrackService:
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
         entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
         entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
         rows.append(entry)
         return entry, []
 
@@ -56,6 +53,4 @@ class CrackService:
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"处置单已{action}"

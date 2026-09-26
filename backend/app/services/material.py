@@ -9,7 +9,6 @@ MODULE = "material"
 REQUIRED_FIELDS = ["材料编号", "材料名称", "规格型号"]
 STATUS_ORDER = ["正常可用", "临近不足", "已冻结", "已耗尽"]
 ACTION_RULES = {"冻结材料": "已冻结", "解冻材料": "正常可用", "登记耗尽": "已耗尽"}
-NEGATIVE_ACTIONS = []
 
 
 class MaterialService:
@@ -41,8 +40,6 @@ class MaterialService:
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
         entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
         entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
         rows.append(entry)
         return entry, []
 
@@ -56,6 +53,4 @@ class MaterialService:
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"养护材料已{action}"
