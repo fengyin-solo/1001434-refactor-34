@@ -1,15 +1,14 @@
-"""养护资金业务规则：状态流转、字段校验与筛选口径都收在这里。"""
+"""养护资金业务规则：状态流转与字段校验在这里组合 registry 与 metrics 的共用口径。"""
 from __future__ import annotations
 
 from typing import Any
 
+from app import metrics
+from app.registry import get_spec
 from app.store import store
 
-MODULE = "fund"
-REQUIRED_FIELDS = ["资金编号", "费用类别", "项目名称"]
-STATUS_ORDER = ["待审批", "已批复", "执行中", "已超支"]
-ACTION_RULES = {"提交审批": "已批复", "确认批复": "执行中", "标记超支": "已超支"}
-NEGATIVE_ACTIONS = []
+SPEC = get_spec("fund")
+MODULE = SPEC.key
 
 
 class FundService:
@@ -33,16 +32,19 @@ class FundService:
     def get_entry(self, entry_id: int) -> dict[str, Any] | None:
         return store.find(MODULE, entry_id)
 
+    def stats(self) -> dict[str, object]:
+        """模块统计卡：与运营概览共用同一份汇总口径。"""
+        return store.module_summary(MODULE)
+
     def create_entry(self, values: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
-        missing = [field for field in REQUIRED_FIELDS if not str(values.get(field) or "").strip()]
+        missing = [field for field in SPEC.required_fields if not str(values.get(field) or "").strip()]
         if missing:
             return None, missing
         rows = store.rows(MODULE)
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
-        entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
-        entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
+        entry.update({field: values.get(field) for field in SPEC.required_fields})
+        entry["status"] = SPEC.status_order[0]
+        metrics.normalize_row(SPEC, entry)
         rows.append(entry)
         return entry, []
 
@@ -50,12 +52,11 @@ class FundService:
         entry = store.find(MODULE, entry_id)
         if entry is None:
             return None, f"资金记录 {entry_id} 不存在或已归档"
-        if action not in ACTION_RULES:
+        if action not in SPEC.action_rules:
             return None, f"动作「{action}」不属于养护资金可执行范围"
-        target = ACTION_RULES[action]
-        if target not in STATUS_ORDER:
+        target = SPEC.action_rules[action]
+        if target not in SPEC.status_order:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
+        metrics.normalize_row(SPEC, entry)
         return entry, f"资金记录已{action}"

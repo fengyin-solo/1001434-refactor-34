@@ -73,7 +73,11 @@ const ENDPOINT = '/api/pothole'
 const columns = ["修补单号", "所在路段", "修补面积", "修补材料", "用料数量", "作业班组", "完成日期", "修补状态"]
 const actions = ["安排修补", "确认完成", "取消修补"]
 const statuses = ["待安排", "修补中", "已完成", "已取消"]
-const stats = [{"label": "待安排修补", "value": 0}, {"label": "本月修补面积", "value": 0}, {"label": "取消单数", "value": 0}]
+const stats = ref([
+  { label: '记录总数', value: 0 },
+  { label: '待处理', value: 0 },
+  { label: '异常量', value: 0 },
+])
 
 const rows = ref<Row[]>([])
 const total = ref(0)
@@ -110,6 +114,26 @@ async function runAction(action: string, row: Row) {
   }
 }
 
+async function loadStats() {
+  // 统计卡与运营概览同一份口径，取自 /stats；取不到时在页脚说明，不留假数字
+  try {
+    const response = await request(`${ENDPOINT}/stats`)
+    if (!response.ok) {
+      throw new Error('坑槽修补统计读取失败')
+    }
+    const payload = await response.json()
+    stats.value = [
+      { label: '记录总数', value: payload.created ?? 0 },
+      { label: '待处理', value: payload.pending ?? 0 },
+      { label: '异常量', value: payload.abnormal ?? 0 },
+    ]
+  } catch (error) {
+    if (!errorMessage.value) {
+      errorMessage.value = error instanceof Error ? error.message : '坑槽修补统计读取失败'
+    }
+  }
+}
+
 async function reload() {
   errorMessage.value = ''
   const query = new URLSearchParams(filters.value as Record<string, string>).toString()
@@ -124,6 +148,7 @@ async function reload() {
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '坑槽修补列表读取失败'
   }
+  await loadStats()
 }
 
 onMounted(reload)

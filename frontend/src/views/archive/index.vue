@@ -73,7 +73,11 @@ const ENDPOINT = '/api/archive'
 const columns = ["档案编号", "关联设施", "档案类型", "资料名称", "存放位置", "归档人员", "归档日期", "档案状态"]
 const actions = ["提交归档", "确认归档", "作废档案"]
 const statuses = ["待归档", "已归档", "待补充", "已作废"]
-const stats = [{"label": "待归档记录", "value": 0}, {"label": "本月归档数", "value": 0}, {"label": "待补充档案", "value": 0}]
+const stats = ref([
+  { label: '记录总数', value: 0 },
+  { label: '待处理', value: 0 },
+  { label: '异常量', value: 0 },
+])
 
 const rows = ref<Row[]>([])
 const total = ref(0)
@@ -110,6 +114,26 @@ async function runAction(action: string, row: Row) {
   }
 }
 
+async function loadStats() {
+  // 统计卡与运营概览同一份口径，取自 /stats；取不到时在页脚说明，不留假数字
+  try {
+    const response = await request(`${ENDPOINT}/stats`)
+    if (!response.ok) {
+      throw new Error('设施档案统计读取失败')
+    }
+    const payload = await response.json()
+    stats.value = [
+      { label: '记录总数', value: payload.created ?? 0 },
+      { label: '待处理', value: payload.pending ?? 0 },
+      { label: '异常量', value: payload.abnormal ?? 0 },
+    ]
+  } catch (error) {
+    if (!errorMessage.value) {
+      errorMessage.value = error instanceof Error ? error.message : '设施档案统计读取失败'
+    }
+  }
+}
+
 async function reload() {
   errorMessage.value = ''
   const query = new URLSearchParams(filters.value as Record<string, string>).toString()
@@ -124,6 +148,7 @@ async function reload() {
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '设施档案列表读取失败'
   }
+  await loadStats()
 }
 
 onMounted(reload)

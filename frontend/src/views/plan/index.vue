@@ -73,7 +73,11 @@ const ENDPOINT = '/api/plan'
 const columns = ["计划编号", "养护类型", "养护对象", "计划工期", "预算金额", "编制人员", "审批人员", "计划状态"]
 const actions = ["提交审批", "确认批复", "作废计划"]
 const statuses = ["待编制", "待审批", "已批复", "已作废"]
-const stats = [{"label": "待审批计划", "value": 0}, {"label": "已批复计划", "value": 0}, {"label": "本月计划金额", "value": 0}]
+const stats = ref([
+  { label: '记录总数', value: 0 },
+  { label: '待处理', value: 0 },
+  { label: '异常量', value: 0 },
+])
 
 const rows = ref<Row[]>([])
 const total = ref(0)
@@ -110,6 +114,26 @@ async function runAction(action: string, row: Row) {
   }
 }
 
+async function loadStats() {
+  // 统计卡与运营概览同一份口径，取自 /stats；取不到时在页脚说明，不留假数字
+  try {
+    const response = await request(`${ENDPOINT}/stats`)
+    if (!response.ok) {
+      throw new Error('养护计划统计读取失败')
+    }
+    const payload = await response.json()
+    stats.value = [
+      { label: '记录总数', value: payload.created ?? 0 },
+      { label: '待处理', value: payload.pending ?? 0 },
+      { label: '异常量', value: payload.abnormal ?? 0 },
+    ]
+  } catch (error) {
+    if (!errorMessage.value) {
+      errorMessage.value = error instanceof Error ? error.message : '养护计划统计读取失败'
+    }
+  }
+}
+
 async function reload() {
   errorMessage.value = ''
   const query = new URLSearchParams(filters.value as Record<string, string>).toString()
@@ -124,6 +148,7 @@ async function reload() {
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '养护计划列表读取失败'
   }
+  await loadStats()
 }
 
 onMounted(reload)

@@ -73,7 +73,11 @@ const ENDPOINT = '/api/accept'
 const columns = ["验收单号", "关联施工", "验收项目", "验收标准", "验收结论", "验收人员", "验收日期", "验收状态"]
 const actions = ["开始验收", "确认通过", "下发返工"]
 const statuses = ["待验收", "验收中", "已通过", "需返工"]
-const stats = [{"label": "待验收单据", "value": 0}, {"label": "本月通过数", "value": 0}, {"label": "需返工项数", "value": 0}]
+const stats = ref([
+  { label: '记录总数', value: 0 },
+  { label: '待处理', value: 0 },
+  { label: '异常量', value: 0 },
+])
 
 const rows = ref<Row[]>([])
 const total = ref(0)
@@ -110,6 +114,26 @@ async function runAction(action: string, row: Row) {
   }
 }
 
+async function loadStats() {
+  // 统计卡与运营概览同一份口径，取自 /stats；取不到时在页脚说明，不留假数字
+  try {
+    const response = await request(`${ENDPOINT}/stats`)
+    if (!response.ok) {
+      throw new Error('竣工验收统计读取失败')
+    }
+    const payload = await response.json()
+    stats.value = [
+      { label: '记录总数', value: payload.created ?? 0 },
+      { label: '待处理', value: payload.pending ?? 0 },
+      { label: '异常量', value: payload.abnormal ?? 0 },
+    ]
+  } catch (error) {
+    if (!errorMessage.value) {
+      errorMessage.value = error instanceof Error ? error.message : '竣工验收统计读取失败'
+    }
+  }
+}
+
 async function reload() {
   errorMessage.value = ''
   const query = new URLSearchParams(filters.value as Record<string, string>).toString()
@@ -124,6 +148,7 @@ async function reload() {
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '竣工验收列表读取失败'
   }
+  await loadStats()
 }
 
 onMounted(reload)

@@ -1,15 +1,14 @@
-"""坑槽修补业务规则：状态流转、字段校验与筛选口径都收在这里。"""
+"""坑槽修补业务规则：状态流转与字段校验在这里组合 registry 与 metrics 的共用口径。"""
 from __future__ import annotations
 
 from typing import Any
 
+from app import metrics
+from app.registry import get_spec
 from app.store import store
 
-MODULE = "pothole"
-REQUIRED_FIELDS = ["修补单号", "所在路段", "修补面积"]
-STATUS_ORDER = ["待安排", "修补中", "已完成", "已取消"]
-ACTION_RULES = {"安排修补": "修补中", "确认完成": "已完成", "取消修补": "已取消"}
-NEGATIVE_ACTIONS = []
+SPEC = get_spec("pothole")
+MODULE = SPEC.key
 
 
 class PotholeService:
@@ -33,16 +32,19 @@ class PotholeService:
     def get_entry(self, entry_id: int) -> dict[str, Any] | None:
         return store.find(MODULE, entry_id)
 
+    def stats(self) -> dict[str, object]:
+        """模块统计卡：与运营概览共用同一份汇总口径。"""
+        return store.module_summary(MODULE)
+
     def create_entry(self, values: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
-        missing = [field for field in REQUIRED_FIELDS if not str(values.get(field) or "").strip()]
+        missing = [field for field in SPEC.required_fields if not str(values.get(field) or "").strip()]
         if missing:
             return None, missing
         rows = store.rows(MODULE)
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
-        entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
-        entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
+        entry.update({field: values.get(field) for field in SPEC.required_fields})
+        entry["status"] = SPEC.status_order[0]
+        metrics.normalize_row(SPEC, entry)
         rows.append(entry)
         return entry, []
 
@@ -50,12 +52,11 @@ class PotholeService:
         entry = store.find(MODULE, entry_id)
         if entry is None:
             return None, f"修补单 {entry_id} 不存在或已归档"
-        if action not in ACTION_RULES:
+        if action not in SPEC.action_rules:
             return None, f"动作「{action}」不属于坑槽修补可执行范围"
-        target = ACTION_RULES[action]
-        if target not in STATUS_ORDER:
+        target = SPEC.action_rules[action]
+        if target not in SPEC.status_order:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
+        metrics.normalize_row(SPEC, entry)
         return entry, f"修补单已{action}"

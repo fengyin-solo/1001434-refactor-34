@@ -1,15 +1,14 @@
-"""隧道设施业务规则：状态流转、字段校验与筛选口径都收在这里。"""
+"""隧道设施业务规则：状态流转与字段校验在这里组合 registry 与 metrics 的共用口径。"""
 from __future__ import annotations
 
 from typing import Any
 
+from app import metrics
+from app.registry import get_spec
 from app.store import store
 
-MODULE = "tunnel"
-REQUIRED_FIELDS = ["隧道编码", "隧道名称", "隧道长度"]
-STATUS_ORDER = ["待移交", "正常养护", "检修封闭", "已停用"]
-ACTION_RULES = {"办理移交": "正常养护", "安排检修": "检修封闭", "停用隧道": "已停用"}
-NEGATIVE_ACTIONS = ["停用隧道"]
+SPEC = get_spec("tunnel")
+MODULE = SPEC.key
 
 
 class TunnelService:
@@ -33,16 +32,19 @@ class TunnelService:
     def get_entry(self, entry_id: int) -> dict[str, Any] | None:
         return store.find(MODULE, entry_id)
 
+    def stats(self) -> dict[str, object]:
+        """模块统计卡：与运营概览共用同一份汇总口径。"""
+        return store.module_summary(MODULE)
+
     def create_entry(self, values: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
-        missing = [field for field in REQUIRED_FIELDS if not str(values.get(field) or "").strip()]
+        missing = [field for field in SPEC.required_fields if not str(values.get(field) or "").strip()]
         if missing:
             return None, missing
         rows = store.rows(MODULE)
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
-        entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
-        entry["status"] = STATUS_ORDER[0]
-        entry["pending"] = True
-        entry["abnormal"] = False
+        entry.update({field: values.get(field) for field in SPEC.required_fields})
+        entry["status"] = SPEC.status_order[0]
+        metrics.normalize_row(SPEC, entry)
         rows.append(entry)
         return entry, []
 
@@ -50,12 +52,11 @@ class TunnelService:
         entry = store.find(MODULE, entry_id)
         if entry is None:
             return None, f"隧道设施 {entry_id} 不存在或已归档"
-        if action not in ACTION_RULES:
+        if action not in SPEC.action_rules:
             return None, f"动作「{action}」不属于隧道设施可执行范围"
-        target = ACTION_RULES[action]
-        if target not in STATUS_ORDER:
+        target = SPEC.action_rules[action]
+        if target not in SPEC.status_order:
             return None, f"目标状态「{target}」不在允许的状态序列里"
         entry["status"] = target
-        entry["pending"] = target != STATUS_ORDER[-1]
-        entry["abnormal"] = action in NEGATIVE_ACTIONS
+        metrics.normalize_row(SPEC, entry)
         return entry, f"隧道设施已{action}"

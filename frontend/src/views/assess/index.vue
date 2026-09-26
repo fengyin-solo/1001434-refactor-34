@@ -73,7 +73,11 @@ const ENDPOINT = '/api/assess'
 const columns = ["评定编号", "评定对象", "评定周期", "技术等级", "评定结论", "评定人员", "评定日期", "评定状态"]
 const actions = ["开始评定", "确认定级", "发起复评"]
 const statuses = ["待评定", "评定中", "已定级", "已复评"]
-const stats = [{"label": "待评定对象", "value": 0}, {"label": "低等级设施", "value": 0}, {"label": "本月评定数", "value": 0}]
+const stats = ref([
+  { label: '记录总数', value: 0 },
+  { label: '待处理', value: 0 },
+  { label: '异常量', value: 0 },
+])
 
 const rows = ref<Row[]>([])
 const total = ref(0)
@@ -110,6 +114,26 @@ async function runAction(action: string, row: Row) {
   }
 }
 
+async function loadStats() {
+  // 统计卡与运营概览同一份口径，取自 /stats；取不到时在页脚说明，不留假数字
+  try {
+    const response = await request(`${ENDPOINT}/stats`)
+    if (!response.ok) {
+      throw new Error('技术评定统计读取失败')
+    }
+    const payload = await response.json()
+    stats.value = [
+      { label: '记录总数', value: payload.created ?? 0 },
+      { label: '待处理', value: payload.pending ?? 0 },
+      { label: '异常量', value: payload.abnormal ?? 0 },
+    ]
+  } catch (error) {
+    if (!errorMessage.value) {
+      errorMessage.value = error instanceof Error ? error.message : '技术评定统计读取失败'
+    }
+  }
+}
+
 async function reload() {
   errorMessage.value = ''
   const query = new URLSearchParams(filters.value as Record<string, string>).toString()
@@ -124,6 +148,7 @@ async function reload() {
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '技术评定列表读取失败'
   }
+  await loadStats()
 }
 
 onMounted(reload)

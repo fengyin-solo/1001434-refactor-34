@@ -6,6 +6,10 @@
         <p class="page-desc">汇总各业务模块的关键指标，先看总量再看异常。</p>
       </div>
     </header>
+    <p v-if="errorMessage" class="error-text">{{ errorMessage }}</p>
+    <p v-else-if="missing.length" class="warn-text">
+      以下模块暂缺数据，卡片合计未包含：{{ missing.join('、') }}
+    </p>
     <div class="stat-row">
       <article v-for="card in cards" :key="card.label" class="stat-card">
         <span class="stat-label">{{ card.label }}</span>
@@ -18,10 +22,15 @@
       </thead>
       <tbody>
         <tr v-for="row in moduleRows" :key="row.name">
-          <td>{{ row.name }}</td>
-          <td>{{ row.created }}</td>
-          <td>{{ row.pending }}</td>
-          <td>{{ row.abnormal }}</td>
+          <td>{{ row.label }}</td>
+          <template v-if="row.available === false">
+            <td colspan="3" class="empty-state">{{ row.error ?? '该模块数据暂缺' }}</td>
+          </template>
+          <template v-else>
+            <td>{{ row.created }}</td>
+            <td>{{ row.pending }}</td>
+            <td>{{ row.abnormal }}</td>
+          </template>
         </tr>
       </tbody>
     </table>
@@ -33,22 +42,36 @@ import { onMounted, ref } from 'vue'
 
 import { fetchJson } from '@/api/client'
 
+type ModuleRow = {
+  name: string
+  label: string
+  created?: number
+  pending?: number
+  abnormal?: number
+  available?: boolean
+  error?: string
+}
+
 type Overview = {
   cards: { label: string; value: number }[]
-  modules: { name: string; created: number; pending: number; abnormal: number }[]
+  modules: ModuleRow[]
+  missing: string[]
 }
 
 const cards = ref<Overview['cards']>([])
 const moduleRows = ref<Overview['modules']>([])
+const missing = ref<string[]>([])
+const errorMessage = ref('')
 
 onMounted(async () => {
+  // 概览取不到就如实提示，绝不在页面上摆一份全零的假数据
   try {
     const payload = await fetchJson<Overview>('/api/overview')
     cards.value = payload.cards
     moduleRows.value = payload.modules
-  } catch {
-    cards.value = [{"label": "业务模块", "value": 0}, {"label": "今日新增", "value": 0}]
-    moduleRows.value = [{"name": "道路设施", "created": 0, "pending": 0, "abnormal": 0}, {"name": "桥梁档案", "created": 0, "pending": 0, "abnormal": 0}, {"name": "隧道设施", "created": 0, "pending": 0, "abnormal": 0}, {"name": "巡查任务", "created": 0, "pending": 0, "abnormal": 0}, {"name": "病害登记", "created": 0, "pending": 0, "abnormal": 0}, {"name": "技术评定", "created": 0, "pending": 0, "abnormal": 0}, {"name": "养护计划", "created": 0, "pending": 0, "abnormal": 0}, {"name": "养护施工", "created": 0, "pending": 0, "abnormal": 0}, {"name": "竣工验收", "created": 0, "pending": 0, "abnormal": 0}, {"name": "坑槽修补", "created": 0, "pending": 0, "abnormal": 0}, {"name": "裂缝处置", "created": 0, "pending": 0, "abnormal": 0}, {"name": "排水设施", "created": 0, "pending": 0, "abnormal": 0}, {"name": "照明设施", "created": 0, "pending": 0, "abnormal": 0}, {"name": "养护材料", "created": 0, "pending": 0, "abnormal": 0}, {"name": "养护机械", "created": 0, "pending": 0, "abnormal": 0}, {"name": "养护资金", "created": 0, "pending": 0, "abnormal": 0}, {"name": "公众诉求", "created": 0, "pending": 0, "abnormal": 0}, {"name": "设施档案", "created": 0, "pending": 0, "abnormal": 0}]
+    missing.value = payload.missing ?? []
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '运营概览读取失败，请稍后刷新重试'
   }
 })
 </script>
